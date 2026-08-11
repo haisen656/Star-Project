@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.expo/
+dist/
+coverage/
+.env
+.env.local
+supabase/.temp/
+*.log
