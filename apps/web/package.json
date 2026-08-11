@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@quickdrop/shared": "workspace:*",
+    "@quickdrop/shared": "file:../../packages/shared",
     "@supabase/supabase-js": "^2.49.4",
     "next": "^15.3.1",
     "qrcode.react": "^4.2.0",
