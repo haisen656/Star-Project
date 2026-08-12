@@ -190,6 +190,9 @@ main.mx-auto.max-w-6xl > p.mb-4 {
 }
 
 .grid.gap-5 > section:first-child .grid.place-items-center.rounded-xl.bg-white {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   position: relative;
   margin-top: 1.25rem;
   margin-bottom: 1.25rem;
