@@ -530,3 +530,10 @@ main.mx-auto.max-w-6xl > header > p { margin-top: 1rem; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+
+.grid.gap-5 > section:first-child .grid.place-items-center.rounded-xl.bg-white {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
