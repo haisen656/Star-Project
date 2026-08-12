@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import { File, Paths } from 'expo-file-system/next';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
@@ -96,8 +96,8 @@ export default function App() {
       const { url } = await getUrl(item);
       if (item.mime_type?.startsWith('image/')) { setPreviewUrl(url); return; }
       if (item.mime_type === 'application/pdf') { await Linking.openURL(url); return; }
-      const target = `${FileSystem.cacheDirectory}${fileName(item.original_filename ?? item.title)}`;
-      const result = await FileSystem.downloadAsync(url, target);
+      const target = new File(Paths.cache, fileName(item.original_filename ?? item.title));
+      const result = await File.downloadFileAsync(url, target);
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(result.uri); else await Linking.openURL(url);
     } catch (caught) { setMessage(caught instanceof Error ? caught.message : '无法下载文件。'); }
   };

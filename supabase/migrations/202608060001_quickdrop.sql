@@ -184,7 +184,6 @@ alter table public.pairing_codes enable row level security;
 alter table public.paired_devices enable row level security;
 alter table public.transfer_items enable row level security;
 alter table public.rate_limit_events enable row level security;
-alter table storage.objects enable row level security;
 
 -- No direct client writes: Edge Functions use service_role after checking anonymous identity/device proof.
 create policy "owner reads own active spaces" on public.transfer_spaces for select to authenticated
@@ -196,11 +195,13 @@ create policy "device reads own pairing" on public.paired_devices for select to 
 create policy "authorized identities read active items" on public.transfer_items for select to authenticated
   using (deleted_at is null and (public.is_space_owner(transfer_space_id) or public.is_active_paired_device(transfer_space_id)));
 
--- Private Storage: there are deliberately no client Storage policies. Edge Functions issue signed URLs only.
+-- Private Storage: storage.objects is already RLS-protected and owned by Supabase's
+-- internal storage role, so hosted projects cannot alter it or add policies from a
+-- migration. We deliberately create no client storage policies; Edge Functions issue
+-- signed URLs only and the bucket remains private.
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('quickdrop-files', 'quickdrop-files', false, 2147483648)
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit;
-create policy "QuickDrop denies direct Storage client access" on storage.objects as restrictive for all to anon, authenticated using (false) with check (false);
 
 alter publication supabase_realtime add table public.transfer_items;
 alter publication supabase_realtime add table public.paired_devices;

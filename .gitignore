@@ -1,9 +1,14 @@
 node_modules/
 .next/
 .expo/
+.tools/
+.gradle-cache/
+apps/mobile/android/
+apps/mobile/ios/
 dist/
 coverage/
 .env
 .env.local
 supabase/.temp/
 *.log
+*.tsbuildinfo

@@ -2,15 +2,15 @@
   "name": "@quickdrop/mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "expo/AppEntry",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "build:apk": "eas build --platform android --profile apk",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "build": "expo export --platform all"
+    "build": "expo export --platform android"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
