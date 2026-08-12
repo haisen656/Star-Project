@@ -428,6 +428,105 @@ textarea:focus,
   .search-input { width: min(100%, 13rem); }
 }
 
+/* Keep the dashboard centered and give each workspace area equal visual weight. */
+main.mx-auto.max-w-6xl > header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+main.mx-auto.max-w-6xl > header > p { margin-top: 1rem; }
+
+.grid.gap-5 > section:first-child {
+  align-self: center;
+  text-align: center;
+}
+
+.grid.gap-5 > section:first-child .font-semibold,
+.grid.gap-5 > section:first-child > div:last-child > p:not(.font-semibold) {
+  justify-content: center;
+  text-align: center;
+}
+
+.space-y-5 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }
+
+.space-y-5 > .panel {
+  display: flex;
+  min-height: 17rem;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.space-y-5 > .panel:nth-of-type(1),
+.space-y-5 > .panel:nth-of-type(2) {
+  align-items: center;
+  text-align: center;
+}
+
+.space-y-5 > .panel:nth-of-type(1) > *,
+.space-y-5 > .panel:nth-of-type(2) > * { max-width: 100%; }
+
+.space-y-5 > .panel:nth-of-type(1) > p,
+.space-y-5 > .panel:nth-of-type(2) > p { max-width: 34rem; }
+
+.space-y-5 > .panel:nth-of-type(1) > div,
+.space-y-5 > .panel:nth-of-type(2) > div,
+.space-y-5 > .panel:nth-of-type(2) textarea { width: min(100%, 34rem); }
+
+.space-y-5 > .panel:nth-of-type(3),
+.space-y-5 > .secondary.danger.w-full {
+  grid-column: 1 / -1;
+}
+
+.space-y-5 > .panel:nth-of-type(3) {
+  min-height: 0;
+  justify-content: flex-start;
+}
+
+.space-y-5 > .panel:nth-of-type(3) > div:first-child {
+  justify-content: center;
+  text-align: center;
+}
+
+.space-y-5 > .panel:nth-of-type(3) article { text-align: left; }
+
+.space-y-5 > .secondary.danger.w-full {
+  width: min(100%, 26rem);
+  justify-self: center;
+}
+
+@media (min-width: 1024px) {
+  .grid.gap-5 {
+    grid-template-columns: minmax(19rem, .85fr) minmax(34rem, 1.45fr) !important;
+    gap: 1.5rem !important;
+  }
+
+  .grid.gap-5 > section:first-child { position: static; }
+}
+
+@media (max-width: 760px) {
+  .space-y-5 { grid-template-columns: minmax(0, 1fr); }
+
+  .space-y-5 > .panel:nth-of-type(3),
+  .space-y-5 > .secondary.danger.w-full { grid-column: auto; }
+
+  .space-y-5 > .panel { min-height: 0; }
+
+  .space-y-5 > .panel:nth-of-type(3) > div:first-child {
+    align-items: center;
+    flex-direction: column;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
