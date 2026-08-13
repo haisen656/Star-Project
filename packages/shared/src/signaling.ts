@@ -134,7 +134,17 @@ const bridgeMetaSchema = z.object({
 // These are control-plane messages only. The endpoint is a LAN address and
 // every transfer gets a fresh, memory-only 256-bit bearer token. No bytes or
 // credentials are ever sent through Supabase Realtime.
-const bridgeEndpointSchema = z.string().regex(/^http:\/\/(?:\d{1,3}\.){3}\d{1,3}:\d{2,5}$/).max(80);
+export function isPrivateLanEndpoint(value: string): boolean {
+  const match = /^http:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{2,5})$/.exec(value);
+  if (!match) return false;
+  const [, a, b, c, d, port] = match;
+  const octets = [a, b, c, d].map(Number);
+  if (octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  if (!Number.isInteger(Number(port)) || Number(port) < 1024 || Number(port) > 65_535) return false;
+  return octets[0] === 10 || (octets[0] === 192 && octets[1] === 168)
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31);
+}
+const bridgeEndpointSchema = z.string().max(80).refine(isPrivateLanEndpoint, 'Expected a private IPv4 LAN endpoint');
 const bridgeTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const lanUploadRequestSchema = z.object({
   v: z.literal(P2P_PROTOCOL_VERSION),

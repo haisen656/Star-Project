@@ -5,6 +5,7 @@ import { File, Paths } from 'expo-file-system/next';
 import {
   LOCAL_BRIDGE_HANDSHAKE_TIMEOUT_MS,
   WEB_PEER_ID,
+  isPrivateLanEndpoint,
   signalChannel,
   signalMessageSchema,
   type LanOfferMessage,
@@ -30,7 +31,7 @@ function localFilename(name: string): string {
 }
 
 function validOffer(offer: LanOfferMessage): boolean {
-  return offer.from === WEB_PEER_ID && Date.parse(offer.expiresAt) > Date.now() && /^http:\/\/(?:\d{1,3}\.){3}\d{1,3}:\d{2,5}$/.test(offer.endpoint);
+  return offer.from === WEB_PEER_ID && Date.parse(offer.expiresAt) > Date.now() && isPrivateLanEndpoint(offer.endpoint);
 }
 
 export class MobileLanBridgeClient {

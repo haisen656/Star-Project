@@ -9,6 +9,7 @@ import {
   textIntentSchema,
   lanOfferSchema,
   lanUploadRequestSchema,
+  isPrivateLanEndpoint,
   P2P_CHUNK_BYTES,
   LOCAL_BRIDGE_MIN_FILE_BYTES,
   MAX_DIRECT_FILE_BYTES,
@@ -103,6 +104,8 @@ describe('data frames', () => {
       v: 1, type: 'lan-offer', intentId, from: 'web', to: spaceId, direction: 'download', endpoint: 'https://192.168.1.8:47561', token: 'a'.repeat(43),
       meta: { name: 'archive.zip', size: 1, mime: 'application/zip' }, expiresAt: '2026-08-13T10:10:00.000Z',
     })).toThrow();
+    expect(isPrivateLanEndpoint('http://192.168.1.8:47561')).toBe(true);
+    expect(isPrivateLanEndpoint('http://8.8.8.8:47561')).toBe(false);
   });
 
   it('accepts a valid file header frame', () => {
