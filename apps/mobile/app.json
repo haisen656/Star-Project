@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "QuickDrop",
+    "slug": "quickdrop",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "quickdrop",
+    "userInterfaceStyle": "automatic",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.example.quickdrop" },
+    "android": { "package": "com.quickdrop.mobile", "permissions": ["CAMERA"] },
+    "plugins": ["expo-camera", "expo-secure-store", "expo-document-picker"]
+  }
+}

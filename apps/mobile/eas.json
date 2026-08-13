@@ -1,0 +1,15 @@
+{
+  "cli": { "version": ">= 12.0.0" },
+  "build": {
+    "apk": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_APP_ENV": "production" }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_APP_ENV": "production" }
+    }
+  }
+}

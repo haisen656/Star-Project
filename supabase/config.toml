@@ -1,0 +1,30 @@
+project_id = "quickdrop"
+
+[functions.create-transfer-space]
+verify_jwt = true
+[functions.pair-device]
+verify_jwt = true
+[functions.get-download-url]
+verify_jwt = true
+[functions.revoke-device]
+verify_jwt = true
+[functions.cleanup-expired-spaces]
+verify_jwt = false
+[functions.create-upload-url]
+verify_jwt = true
+[functions.complete-upload]
+verify_jwt = true
+[functions.create-text-item]
+verify_jwt = true
+[functions.get-space-state]
+verify_jwt = true
+[functions.delete-transfer-item]
+verify_jwt = true
+[functions.destroy-transfer-space]
+verify_jwt = true
+[functions.regenerate-pairing-code]
+verify_jwt = true
+[functions.create-file-share-link]
+verify_jwt = true
+[functions.share-file-download]
+verify_jwt = false

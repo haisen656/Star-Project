@@ -1,0 +1,36 @@
+{
+  "name": "@quickdrop/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "build:apk": "eas build --platform android --profile apk",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "build": "expo export --platform all"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "expo": "^53.0.0",
+    "expo-camera": "~16.1.8",
+    "expo-clipboard": "~7.1.5",
+    "expo-document-picker": "~13.1.6",
+    "expo-file-system": "~18.1.10",
+    "expo-linking": "~7.1.4",
+    "expo-secure-store": "~14.2.3",
+    "expo-sharing": "~13.1.5",
+    "expo-status-bar": "~2.2.3",
+    "react": "19.0.0",
+    "react-native": "0.79.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/react": "^19.1.2",
+    "eslint": "^9.25.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.30.1"
+  }
+}
