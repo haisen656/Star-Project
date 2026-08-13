@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.quickdrop.mobile",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/quickdrop-icon.png",
         "backgroundColor": "#0B1432"

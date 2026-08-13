@@ -30,9 +30,11 @@ Edge Functions 验证请求里的匿名 JWT；若不是空间所有者，则还�
 
 `quickdrop-files` 是 `public=false` bucket，刻意没有直接客户端 Storage policy。只有使用 `service_role` 的函数可创建签名 URL；`service_role` 只存在于 Supabase Edge Function 运行环境。
 
-## 局域网直传
+## 局域网与本机大文件传输
 
-Web 与已配对手机同网时可通过 WebRTC DataChannel 直传文件与文本，信令经 Realtime 私有广播通道（RLS 鉴权），失败自动回退云端链路。直传 v1 仅处理不大于 64MB 的文件，以限制浏览器接收内存；更大文件仍使用私有 Storage（单文件、空间总量上限均为 2GB）。详见 [局域网直传设计方案](lan-p2p-transfer.md)。
+Realtime 私有广播通道仍负责 WebRTC 文本同步及本机助手的控制消息，RLS 仅允许空间所有者与未撤销设备。小于 64MB 的文件直接进入私有 Storage；64MB 及以上文件优先使用可选的 Windows 无界面 Bridge，在电脑与同 Wi‑Fi 手机间原生流式传送。文件字节不经过 Realtime 或 Supabase Storage，浏览器不保留整文件副本。
+
+网页发往手机时，Bridge 将浏览器的流直接转发给持有一次性 token 的手机；手机发往网页时，Bridge 暂存到系统临时目录并给网页一个仅十分钟有效的本地保存 URL。任一握手、网络或完整性问题都会使来源端回退到现有 HTTPS 私有 Storage。Bridge 的安装、端口、令牌与安全限制详见 [本机传输助手](local-bridge.md)。
 
 ## 生命周期
 

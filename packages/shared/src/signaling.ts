@@ -16,6 +16,14 @@ export const P2P_CHUNK_BYTES = 64 * 1024;
 // folder on every supported browser. Keep v1's in-memory browser handoff
 // deliberately bounded; larger files automatically use private Storage.
 export const MAX_DIRECT_FILE_BYTES = 64 * 1024 * 1024;
+// Files at or above this threshold bypass browser WebRTC.  They use the
+// optional Windows bridge, which streams bytes over the local network without
+// keeping a browser-sized copy in memory. Smaller files deliberately remain
+// in private Supabase Storage so they are available to every paired device.
+export const LOCAL_BRIDGE_MIN_FILE_BYTES = MAX_DIRECT_FILE_BYTES;
+export const LOCAL_BRIDGE_PORT = 47_561;
+export const LOCAL_BRIDGE_HANDSHAKE_TIMEOUT_MS = 12_000;
+export const LOCAL_BRIDGE_TOKEN_BYTES = 32;
 export const WEB_PEER_ID = 'web';
 
 export function signalChannel(spaceId: string): string {
@@ -117,6 +125,62 @@ export const byeSchema = z.object({
   from: peerId,
 });
 
+const bridgeMetaSchema = z.object({
+  name: z.string().min(1).max(512),
+  size: z.number().int().positive().max(MAX_FILE_BYTES),
+  mime: z.string().min(1).max(160),
+});
+
+// These are control-plane messages only. The endpoint is a LAN address and
+// every transfer gets a fresh, memory-only 256-bit bearer token. No bytes or
+// credentials are ever sent through Supabase Realtime.
+const bridgeEndpointSchema = z.string().regex(/^http:\/\/(?:\d{1,3}\.){3}\d{1,3}:\d{2,5}$/).max(80);
+const bridgeTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+export const lanUploadRequestSchema = z.object({
+  v: z.literal(P2P_PROTOCOL_VERSION),
+  type: z.literal('lan-upload-request'),
+  intentId: uuid,
+  from: uuid,
+  to: z.literal(WEB_PEER_ID),
+  meta: bridgeMetaSchema,
+});
+export const lanOfferSchema = z.object({
+  v: z.literal(P2P_PROTOCOL_VERSION),
+  type: z.literal('lan-offer'),
+  intentId: uuid,
+  from: z.literal(WEB_PEER_ID),
+  to: uuid,
+  // download: browser -> phone; upload: phone -> local bridge -> browser.
+  direction: z.enum(['download', 'upload']),
+  endpoint: bridgeEndpointSchema,
+  token: bridgeTokenSchema,
+  meta: bridgeMetaSchema,
+  expiresAt: z.string().datetime(),
+});
+export const lanAckSchema = z.object({
+  v: z.literal(P2P_PROTOCOL_VERSION),
+  type: z.literal('lan-ack'),
+  intentId: uuid,
+  from: uuid,
+  to: z.literal(WEB_PEER_ID),
+});
+export const lanCompleteSchema = z.object({
+  v: z.literal(P2P_PROTOCOL_VERSION),
+  type: z.literal('lan-complete'),
+  intentId: uuid,
+  from: peerId,
+  to: peerId,
+  success: z.boolean(),
+  error: z.string().min(1).max(160).optional(),
+});
+export const lanCancelSchema = z.object({
+  v: z.literal(P2P_PROTOCOL_VERSION),
+  type: z.literal('lan-cancel'),
+  intentId: uuid,
+  from: peerId,
+  to: peerId,
+});
+
 export const signalMessageSchema = z.union([
   helloSchema,
   intentSchema,
@@ -126,6 +190,11 @@ export const signalMessageSchema = z.union([
   iceSchema,
   cancelSchema,
   byeSchema,
+  lanUploadRequestSchema,
+  lanOfferSchema,
+  lanAckSchema,
+  lanCompleteSchema,
+  lanCancelSchema,
 ]);
 
 // DataChannel frames. String frames are JSON control messages; file bytes
@@ -170,6 +239,8 @@ export type TransferIntent = z.infer<typeof intentSchema>;
 export type SdpMessage = z.infer<typeof sdpSchema>;
 export type IceMessage = z.infer<typeof iceSchema>;
 export type SignalMessage = z.infer<typeof signalMessageSchema>;
+export type LanOfferMessage = z.infer<typeof lanOfferSchema>;
+export type LanUploadRequestMessage = z.infer<typeof lanUploadRequestSchema>;
 export type FileHeaderFrame = z.infer<typeof fileHeaderFrameSchema>;
 export type TextFrame = z.infer<typeof textFrameSchema>;
 export type DataFrame = z.infer<typeof dataFrameSchema>;

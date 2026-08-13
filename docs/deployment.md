@@ -43,7 +43,7 @@ pnpm --filter @quickdrop/mobile build:apk
 
 EAS 完成后输出的 artifact URL 是最终 APK 下载地址。生产商店发布使用 `production` profile，它输出 Android App Bundle；`apk` profile 专用于直接下载安装。
 
-局域网直传（WebRTC P2P）为 APK 引入原生模块（`react-native-webrtc`），任何相关改动都必须重新执行本节构建；Web 端与迁移的发布顺序见 [局域网直传设计方案](lan-p2p-transfer.md) §10。
+局域网文本同步（WebRTC）和大文件本机助手均要求重新构建 APK；Android 已为已配对电脑的专用 LAN 端点启用 cleartext traffic。电脑端还需按 [本机传输助手](local-bridge.md) 安装当前用户的无界面 Bridge。部署新 Web 域名时，请将其作为 `-WebOrigin` 传给安装脚本或设置 `QUICKDROP_ALLOWED_ORIGINS`，否则助手会拒绝网页的本地控制请求。
 
 ## 分享链接安全
 

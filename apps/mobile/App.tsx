@@ -7,11 +7,12 @@ import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import { WEB_PEER_ID } from '@quickdrop/shared';
+import { LOCAL_BRIDGE_MIN_FILE_BYTES, WEB_PEER_ID } from '@quickdrop/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, FlatList, Image, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DEVICE_ID_KEY, DEVICE_TOKEN_KEY, SPACE_ID_KEY, supabase } from './src/supabase';
 import { P2PClient, type ReceivedFile } from './src/p2p';
+import { MobileLanBridgeClient } from './src/lan-bridge';
 
 type Item = { id: string; type: 'file' | 'text'; title: string; text_content: string | null; original_filename: string | null; mime_type: string | null; file_size: number | null; created_at: string; transport: 'cloud' | 'p2p' };
 type PairResult = { transferSpaceId: string; deviceId: string; deviceAccessToken: string };
@@ -79,6 +80,7 @@ export default function App() {
   const [activeText, setActiveText] = useState<Item | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const p2pRef = useRef<P2PClient | null>(null);
+  const bridgeRef = useRef<MobileLanBridgeClient | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [peerOnline, setPeerOnline] = useState(false);
   const [receivedFiles, setReceivedFiles] = useState<ReceivedFile[]>([]);
@@ -140,8 +142,21 @@ export default function App() {
     });
     p2pRef.current = client;
     client.start(supabase());
-    const subscription = AppState.addEventListener('change', (state) => client.setForeground(state === 'active'));
-    return () => { subscription.remove(); client.stop(); p2pRef.current = null; setPeerOnline(false); };
+    const bridge = new MobileLanBridgeClient(spaceId, deviceId, {
+      onFileReceived: (file) => {
+        setReceivedFiles((current) => [...current.filter((item) => item.uri !== file.uri), file]);
+        void persistReceivedFile(spaceId, file);
+        setMessage(`已通过本机局域网助手收到 ${file.name}。`);
+      },
+    });
+    bridgeRef.current = bridge;
+    bridge.start(supabase());
+    const subscription = AppState.addEventListener('change', (state) => {
+      const active = state === 'active';
+      client.setForeground(active);
+      bridge.setForeground(active);
+    });
+    return () => { subscription.remove(); client.stop(); bridge.stop(); p2pRef.current = null; bridgeRef.current = null; setPeerOnline(false); };
   }, [spaceId, deviceToken, deviceId]);
 
   const explainPairingError = (reason: string) => ({ PAIRING_INVALID: '验证码无效。', PAIRING_EXPIRED: '验证码已过期，请让网页重新生成。', PAIRING_USED: '验证码已使用，请让网页重新生成。', PAIRING_LOCKED: '该验证码尝试次数过多，已锁定。', RATE_LIMITED: '尝试次数过多，请 15 分钟后再试。', DEVICE_LIMIT: '该电脑已连接 3 台手机。' }[reason] ?? '配对失败，请检查网络和验证码。');
@@ -216,19 +231,14 @@ export default function App() {
         const size = asset.size ?? (info.exists ? info.size : 0);
         const mimeType = asset.mimeType ?? 'application/octet-stream';
         if (!Number.isSafeInteger(size) || size <= 0) throw new Error('无法读取所选文件的大小。');
-        const p2p = p2pRef.current;
-        if (p2p && peerOnline && p2p.isPeerAvailable(WEB_PEER_ID)) {
+        const bridge = bridgeRef.current;
+        if (size >= LOCAL_BRIDGE_MIN_FILE_BYTES && bridge) {
           try {
-            setMessage(`正在通过局域网直传 ${asset.name}…`);
-            await p2p.sendFile(asset.uri, asset.name, mimeType, size, WEB_PEER_ID);
-            try {
-              await invoke('create-p2p-item', { transferSpaceId: spaceId, kind: 'file', originalFilename: asset.name, mimeType, fileSize: size });
-              setMessage(`已通过局域网直传送出 ${asset.name}。`);
-            } catch {
-              setMessage(`已直传 ${asset.name}，但传输记录暂未写入；不会重复上传。`);
-            }
+            setMessage(`正在通过本机局域网助手传送 ${asset.name}…`);
+            await bridge.sendFile(asset.uri, asset.name, mimeType, size);
+            setMessage(`已通过本机局域网助手送出 ${asset.name}。`);
             continue;
-          } catch { setMessage(`直传失败，改用云端上传 ${asset.name}…`); }
+          } catch { setMessage(`本机直传不可用，改用私有云端上传 ${asset.name}…`); }
         }
         setMessage(`正在上传 ${asset.name}…`);
         const ticket = await invoke<{ storagePath: string; signedUrl: string; filename: string }>('create-upload-url', { transferSpaceId: spaceId, filename: asset.name, mimeType, size });

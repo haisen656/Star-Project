@@ -7,7 +7,10 @@ import {
   signalMessageSchema,
   textFrameSchema,
   textIntentSchema,
+  lanOfferSchema,
+  lanUploadRequestSchema,
   P2P_CHUNK_BYTES,
+  LOCAL_BRIDGE_MIN_FILE_BYTES,
   MAX_DIRECT_FILE_BYTES,
 } from '../src/signaling.js';
 
@@ -69,6 +72,11 @@ describe('signaling messages', () => {
       { v: 1, type: 'ice', intentId, from: spaceId, to: 'web', candidate: 'candidate:1' },
       { v: 1, type: 'cancel', intentId, from: 'web', to: spaceId },
       { v: 1, type: 'bye', from: 'web' },
+      { v: 1, type: 'lan-upload-request', intentId, from: spaceId, to: 'web', meta: { name: 'large.zip', size: 67 * 1024 * 1024, mime: 'application/zip' } },
+      { v: 1, type: 'lan-offer', intentId, from: 'web', to: spaceId, direction: 'download', endpoint: 'http://192.168.1.8:47561', token: 'a'.repeat(43), meta: { name: 'large.zip', size: 67 * 1024 * 1024, mime: 'application/zip' }, expiresAt: '2026-08-13T10:10:00.000Z' },
+      { v: 1, type: 'lan-ack', intentId, from: spaceId, to: 'web' },
+      { v: 1, type: 'lan-complete', intentId, from: spaceId, to: 'web', success: true },
+      { v: 1, type: 'lan-cancel', intentId, from: 'web', to: spaceId },
     ];
     for (const message of messages) {
       expect(signalMessageSchema.parse(message)).toMatchObject(message);
@@ -80,6 +88,21 @@ describe('data frames', () => {
   it('keeps direct browser delivery below the in-memory safety cap', () => {
     expect(MAX_DIRECT_FILE_BYTES).toBe(64 * 1024 * 1024);
     expect(MAX_DIRECT_FILE_BYTES).toBeLessThanOrEqual(2 * 1024 * 1024 * 1024);
+  });
+
+  it('uses a separate local bridge threshold for large streaming files', () => {
+    expect(LOCAL_BRIDGE_MIN_FILE_BYTES).toBe(MAX_DIRECT_FILE_BYTES);
+  });
+
+  it('accepts only bounded LAN bridge control data', () => {
+    expect(lanUploadRequestSchema.parse({
+      v: 1, type: 'lan-upload-request', intentId, from: spaceId, to: 'web',
+      meta: { name: 'archive.zip', size: 70 * 1024 * 1024, mime: 'application/zip' },
+    }).meta.size).toBe(70 * 1024 * 1024);
+    expect(() => lanOfferSchema.parse({
+      v: 1, type: 'lan-offer', intentId, from: 'web', to: spaceId, direction: 'download', endpoint: 'https://192.168.1.8:47561', token: 'a'.repeat(43),
+      meta: { name: 'archive.zip', size: 1, mime: 'application/zip' }, expiresAt: '2026-08-13T10:10:00.000Z',
+    })).toThrow();
   });
 
   it('accepts a valid file header frame', () => {

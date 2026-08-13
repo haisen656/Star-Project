@@ -7,6 +7,7 @@ QuickDrop 是一个无账号、短生命周期的跨设备文件与文本传输�
 ```text
 apps/web                 Next.js 响应式传输面板
 apps/mobile              Expo iOS/Android App
+apps/bridge              Windows 无界面本机大文件传输助手
 packages/shared          配对、限流、访问、文件校验的共享规则与测试
 supabase/migrations      数据表、索引、RLS、私有 Storage bucket
 supabase/functions       Edge Functions
@@ -52,3 +53,5 @@ pnpm build
 每个文件可生成一个可撤销的安全分享链接；Web 会以二维码展示，手机可通过系统分享链接。链接令牌默认一小时失效，扫码后的实际私有下载 URL 仍只有效 60 秒。
 
 详见 [架构说明](docs/architecture.md)、[安全说明](docs/security.md) 与 [发布 Web URL / APK](docs/deployment.md)。局域网直传（WebRTC P2P）方案见 [设计文档](docs/lan-p2p-transfer.md)。
+
+大于等于 64MB 的同 Wi‑Fi 文件可选用无界面的 Windows 本机传输助手；小文件仍使用私有云端。安装、安全边界和回退规则见 [本机传输助手](docs/local-bridge.md)。
