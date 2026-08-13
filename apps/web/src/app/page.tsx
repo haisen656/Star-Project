@@ -9,16 +9,50 @@ import { LanBridgeClient, type LocalBridgeFile } from '../lib/lan-bridge';
 
 type Space = { id: string; expires_at: string; name: string };
 type Pairing = { code: string; pairingToken: string; pairingExpiresAt: string; qrPayload: string };
-type Item = { id: string; type: 'file' | 'text'; title: string; text_content: string | null; original_filename: string | null; mime_type: string | null; file_size: number | null; created_at: string; transport: 'cloud' | 'p2p' };
-type Device = { id: string; device_name: string; device_type: string; paired_at: string; last_seen_at: string };
-type Upload = { id: string; name: string; progress: number; error?: string; mode: 'bridge' | 'cloud' };
+type Item = {
+  id: string;
+  type: 'file' | 'text';
+  title: string;
+  text_content: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  created_at: string;
+  transport: 'cloud' | 'p2p';
+};
+type Device = {
+  id: string;
+  device_name: string;
+  device_type: string;
+  paired_at: string;
+  last_seen_at: string;
+};
+type Upload = {
+  id: string;
+  name: string;
+  progress: number;
+  error?: string;
+  mode: 'bridge' | 'cloud';
+};
 type FileShare = { shareUrl: string; directDownloadUrl: string; expiresAt: string; title: string };
 type Received = ReceivedFile & { url: string };
 
-const byteLabel = (size: number | null) => !size ? '' : size > 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(size / 1024)} KB`;
-const timeLabel = (iso: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
+const byteLabel = (size: number | null) =>
+  !size
+    ? ''
+    : size > 1024 * 1024
+      ? `${(size / 1024 / 1024).toFixed(1)} MB`
+      : `${Math.ceil(size / 1024)} KB`;
+const timeLabel = (iso: string) =>
+  new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(
+    new Date(iso),
+  );
 
-function uploadWithProgress(url: string, file: File, progress: (value: number) => void): Promise<void> {
+function uploadWithProgress(
+  url: string,
+  file: File,
+  progress: (value: number) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     // A Supabase signed-upload URL accepts the file as the raw PUT body. Using
     // multipart changes the content type and prevents complete-upload from
@@ -27,15 +61,22 @@ function uploadWithProgress(url: string, file: File, progress: (value: number) =
     xhr.open('PUT', url);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     xhr.setRequestHeader('x-upsert', 'false');
-    xhr.upload.onprogress = (event) => { if (event.lengthComputable) progress(Math.round((event.loaded / event.total) * 100)); };
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) progress(Math.round((event.loaded / event.total) * 100));
+    };
     xhr.onerror = () => reject(new Error('文件上传网络错误。'));
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) { resolve(); return; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
       let detail = '';
       try {
         const response = JSON.parse(xhr.responseText) as { message?: string; error?: string };
         detail = response.message ?? response.error ?? '';
-      } catch { /* Use the HTTP status fallback below. */ }
+      } catch {
+        /* Use the HTTP status fallback below. */
+      }
       reject(new Error(detail || `上传失败（${xhr.status}）`));
     };
     xhr.send(file);
@@ -62,21 +103,37 @@ export default function TransferPanel() {
   const [bridgeFiles, setBridgeFiles] = useState<LocalBridgeFile[]>([]);
   const [receivedText, setReceivedText] = useState('');
 
-  const invoke = useCallback(async <T,>(name: string, body: Record<string, unknown>): Promise<T> => {
-    const { data, error } = await supabase().functions.invoke(name, { body });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error.message);
-    return data as T;
-  }, []);
+  const invoke = useCallback(
+    async <T,>(name: string, body: Record<string, unknown>): Promise<T> => {
+      const { data, error } = await supabase().functions.invoke(name, { body });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error.message);
+      return data as T;
+    },
+    [],
+  );
 
-  const refresh = useCallback(async (spaceId: string) => {
-    const [itemsResult, state] = await Promise.all([
-      supabase().from('transfer_items').select('id,type,title,text_content,original_filename,mime_type,file_size,created_at,transport').eq('transfer_space_id', spaceId).order('created_at', { ascending: false }),
-      invoke<{ space: Space; devices: Device[] }>('get-space-state', { transferSpaceId: spaceId }),
-    ]);
-    if (itemsResult.error) throw itemsResult.error;
-    setItems((itemsResult.data ?? []) as Item[]); setDevices(state.devices ?? []); setSpace(state.space);
-  }, [invoke]);
+  const refresh = useCallback(
+    async (spaceId: string) => {
+      const [itemsResult, state] = await Promise.all([
+        supabase()
+          .from('transfer_items')
+          .select(
+            'id,type,title,text_content,original_filename,mime_type,file_size,created_at,transport',
+          )
+          .eq('transfer_space_id', spaceId)
+          .order('created_at', { ascending: false }),
+        invoke<{ space: Space; devices: Device[] }>('get-space-state', {
+          transferSpaceId: spaceId,
+        }),
+      ]);
+      if (itemsResult.error) throw itemsResult.error;
+      setItems((itemsResult.data ?? []) as Item[]);
+      setDevices(state.devices ?? []);
+      setSpace(state.space);
+    },
+    [invoke],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,31 +141,80 @@ export default function TransferPanel() {
       try {
         const client = supabase();
         const { data: sessionData } = await client.auth.getSession();
-        if (!sessionData.session) { const { error } = await client.auth.signInAnonymously(); if (error) throw error; }
-        const created = await invoke<{ transferSpaceId: string; code: string; pairingToken: string; pairingExpiresAt: string; expiresAt: string; qrPayload: string }>('create-transfer-space', { expiresInHours: 24 });
+        if (!sessionData.session) {
+          const { error } = await client.auth.signInAnonymously();
+          if (error) throw error;
+        }
+        const created = await invoke<{
+          transferSpaceId: string;
+          code: string;
+          pairingToken: string;
+          pairingExpiresAt: string;
+          expiresAt: string;
+          qrPayload: string;
+        }>('create-transfer-space', { expiresInHours: 24 });
         if (cancelled) return;
-        setSpace({ id: created.transferSpaceId, expires_at: created.expiresAt, name: '临时传输空间' });
-        setPairing(created); await refresh(created.transferSpaceId);
-      } catch (caught) { if (!cancelled) setBootError(caught instanceof Error ? caught.message : '无法建立临时传输空间。'); }
+        setSpace({
+          id: created.transferSpaceId,
+          expires_at: created.expiresAt,
+          name: '临时传输空间',
+        });
+        setPairing(created);
+        await refresh(created.transferSpaceId);
+      } catch (caught) {
+        if (!cancelled)
+          setBootError(caught instanceof Error ? caught.message : '无法建立临时传输空间。');
+      }
     }
-    void start(); return () => { cancelled = true; };
+    void start();
+    return () => {
+      cancelled = true;
+    };
   }, [invoke, refresh]);
 
   useEffect(() => {
     if (!space) return;
-    const channel = supabase().channel(`quickdrop-${space.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transfer_items', filter: `transfer_space_id=eq.${space.id}` }, () => void refresh(space.id))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'paired_devices', filter: `transfer_space_id=eq.${space.id}` }, () => void refresh(space.id))
+    const channel = supabase()
+      .channel(`quickdrop-${space.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transfer_items',
+          filter: `transfer_space_id=eq.${space.id}`,
+        },
+        () => void refresh(space.id),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'paired_devices',
+          filter: `transfer_space_id=eq.${space.id}`,
+        },
+        () => void refresh(space.id),
+      )
       .subscribe();
-    return () => { void supabase().removeChannel(channel); };
+    return () => {
+      void supabase().removeChannel(channel);
+    };
   }, [refresh, space]);
 
   useEffect(() => {
     if (!space) return;
     const client = new P2PClient(space.id, WEB_PEER_ID, {
       onPeersChange: setOnlinePeers,
-      onFileReceived: (file) => setReceivedFiles((current) => [...current, { ...file, url: URL.createObjectURL(file.blob) }]),
-      onTextReceived: (text) => { setReceivedText(text); setNotice('已通过局域网直传收到文字。'); },
+      onFileReceived: (file) =>
+        setReceivedFiles((current) => [
+          ...current,
+          { ...file, url: URL.createObjectURL(file.blob) },
+        ]),
+      onTextReceived: (text) => {
+        setReceivedText(text);
+        setNotice('已通过局域网直传收到文字。');
+      },
     });
     p2pRef.current = client;
     client.start(supabase());
@@ -116,24 +222,50 @@ export default function TransferPanel() {
       onIncomingFile: (file) => {
         setBridgeFiles((current) => [...current.filter((item) => item.id !== file.id), file]);
         setNotice(`已从手机通过本机局域网助手收到 ${file.name}，可直接保存到电脑。`);
-        void invoke('create-p2p-item', { transferSpaceId: space.id, kind: 'file', originalFilename: file.name, mimeType: file.mime, fileSize: file.size })
-          .catch(() => setNotice(`已收到 ${file.name}，但传输记录暂未写入；文件不会上传到云端。`));
+        void invoke('create-p2p-item', {
+          transferSpaceId: space.id,
+          kind: 'file',
+          originalFilename: file.name,
+          mimeType: file.mime,
+          fileSize: file.size,
+        }).catch(() => setNotice(`已收到 ${file.name}，但传输记录暂未写入；文件不会上传到云端。`));
       },
     });
     bridgeRef.current = bridge;
     bridge.start(supabase());
-    return () => { client.stop(); bridge.stop(); p2pRef.current = null; bridgeRef.current = null; setOnlinePeers([]); };
+    return () => {
+      client.stop();
+      bridge.stop();
+      p2pRef.current = null;
+      bridgeRef.current = null;
+      setOnlinePeers([]);
+    };
   }, [invoke, space]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setSeconds(pairing ? Math.max(0, Math.ceil((new Date(pairing.pairingExpiresAt).getTime() - Date.now()) / 1000)) : 0), 1000);
+    const timer = window.setInterval(
+      () =>
+        setSeconds(
+          pairing
+            ? Math.max(
+                0,
+                Math.ceil((new Date(pairing.pairingExpiresAt).getTime() - Date.now()) / 1000),
+              )
+            : 0,
+        ),
+      1000,
+    );
     return () => window.clearInterval(timer);
   }, [pairing]);
 
   const regenerate = async () => {
     if (!space) return;
-    try { setPairing(await invoke<Pairing>('regenerate-pairing-code', { transferSpaceId: space.id })); setNotice('已生成新的单次配对验证码。'); }
-    catch (caught) { setNotice(caught instanceof Error ? caught.message : '生成失败。'); }
+    try {
+      setPairing(await invoke<Pairing>('regenerate-pairing-code', { transferSpaceId: space.id }));
+      setNotice('已生成新的单次配对验证码。');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : '生成失败。');
+    }
   };
 
   const chooseTarget = useCallback((): string | null => {
@@ -144,55 +276,120 @@ export default function TransferPanel() {
     return targetDeviceId && available.includes(targetDeviceId) ? targetDeviceId : available[0];
   }, [onlinePeers, targetDeviceId]);
 
-  const cloudUploadFile = useCallback(async (file: File, uploadId: string, spaceId: string) => {
-    const setProgress = (value: number) => setUploads((current) => current.map((upload) => upload.id === uploadId ? { ...upload, progress: value } : upload));
-    const ticket = await invoke<{ storagePath: string; signedUrl: string; filename: string }>('create-upload-url', { transferSpaceId: spaceId, filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size });
-    await uploadWithProgress(ticket.signedUrl, file, setProgress);
-    await invoke('complete-upload', { transferSpaceId: spaceId, storagePath: ticket.storagePath, filename: ticket.filename, mimeType: file.type || 'application/octet-stream', size: file.size });
-    setProgress(100);
-  }, [invoke]);
+  const cloudUploadFile = useCallback(
+    async (file: File, uploadId: string, spaceId: string) => {
+      const setProgress = (value: number) =>
+        setUploads((current) =>
+          current.map((upload) =>
+            upload.id === uploadId ? { ...upload, progress: value } : upload,
+          ),
+        );
+      const ticket = await invoke<{ storagePath: string; signedUrl: string; filename: string }>(
+        'create-upload-url',
+        {
+          transferSpaceId: spaceId,
+          filename: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+        },
+      );
+      await uploadWithProgress(ticket.signedUrl, file, setProgress);
+      await invoke('complete-upload', {
+        transferSpaceId: spaceId,
+        storagePath: ticket.storagePath,
+        filename: ticket.filename,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+      });
+      setProgress(100);
+    },
+    [invoke],
+  );
 
   const addFiles = async (fileList: FileList | File[]) => {
     if (!space) return;
     for (const file of Array.from(fileList)) {
       const uploadId = `${file.name}-${file.lastModified}-${Math.random()}`;
-      setUploads((current) => [...current, { id: uploadId, name: file.name, progress: 0, mode: file.size >= LOCAL_BRIDGE_MIN_FILE_BYTES ? 'bridge' : 'cloud' }]);
-      const setUpload = (patch: Partial<Upload>) => setUploads((current) => current.map((upload) => upload.id === uploadId ? { ...upload, ...patch } : upload));
+      setUploads((current) => [
+        ...current,
+        {
+          id: uploadId,
+          name: file.name,
+          progress: 0,
+          mode: file.size >= LOCAL_BRIDGE_MIN_FILE_BYTES ? 'bridge' : 'cloud',
+        },
+      ]);
+      const setUpload = (patch: Partial<Upload>) =>
+        setUploads((current) =>
+          current.map((upload) => (upload.id === uploadId ? { ...upload, ...patch } : upload)),
+        );
       const target = chooseTarget();
       if (file.size >= LOCAL_BRIDGE_MIN_FILE_BYTES && target && bridgeRef.current) {
         try {
           await bridgeRef.current.sendFile(file, target, (progress) => setUpload({ progress }));
           setUpload({ progress: 100, mode: 'bridge' });
           try {
-            await invoke('create-p2p-item', { transferSpaceId: space.id, kind: 'file', originalFilename: file.name, mimeType: file.type || 'application/octet-stream', fileSize: file.size });
+            await invoke('create-p2p-item', {
+              transferSpaceId: space.id,
+              kind: 'file',
+              originalFilename: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              fileSize: file.size,
+            });
           } catch {
-            setNotice(`已通过本机局域网助手直传 ${file.name}，但传输记录暂未写入；不会重复上传到云端。`);
+            setNotice(
+              `已通过本机局域网助手直传 ${file.name}，但传输记录暂未写入；不会重复上传到云端。`,
+            );
           }
           continue;
-        } catch { setUpload({ progress: 0, mode: 'cloud', error: undefined }); }
-      } else { setUpload({ mode: 'cloud' }); }
-      try { await cloudUploadFile(file, uploadId, space.id); setUpload({ progress: 100, mode: 'cloud' }); }
-      catch (caught) { setUpload({ error: caught instanceof Error ? caught.message : '上传失败' }); }
+        } catch {
+          setUpload({ progress: 0, mode: 'cloud', error: undefined });
+        }
+      } else {
+        setUpload({ mode: 'cloud' });
+      }
+      try {
+        await cloudUploadFile(file, uploadId, space.id);
+        setUpload({ progress: 100, mode: 'cloud' });
+      } catch (caught) {
+        setUpload({ error: caught instanceof Error ? caught.message : '上传失败' });
+      }
     }
   };
 
   const readClipboard = async () => {
-    try { setClipboardText(await navigator.clipboard.readText()); setNotice('已读取剪贴板文字，请确认后同步。'); }
-    catch { setNotice('浏览器未授予剪贴板权限，请在下方手动粘贴。'); }
+    try {
+      setClipboardText(await navigator.clipboard.readText());
+      setNotice('已读取剪贴板文字，请确认后同步。');
+    } catch {
+      setNotice('浏览器未授予剪贴板权限，请在下方手动粘贴。');
+    }
   };
   const sendText = async () => {
     if (!space || !clipboardText.trim()) return;
     const text = clipboardText;
     const viaCloud = async () => {
       await invoke('create-text-item', { transferSpaceId: space.id, text });
-      setClipboardText(''); setNotice('文字已同步。');
+      setClipboardText('');
+      setNotice('文字已同步。');
     };
     const target = chooseTarget();
-    if (!target || !p2pRef.current) { try { await viaCloud(); } catch (caught) { setNotice(caught instanceof Error ? caught.message : '同步失败。'); } return; }
+    if (!target || !p2pRef.current) {
+      try {
+        await viaCloud();
+      } catch (caught) {
+        setNotice(caught instanceof Error ? caught.message : '同步失败。');
+      }
+      return;
+    }
     try {
       await p2pRef.current.sendText(text, target);
     } catch {
-      try { await viaCloud(); } catch (caught) { setNotice(caught instanceof Error ? caught.message : '同步失败。'); }
+      try {
+        await viaCloud();
+      } catch (caught) {
+        setNotice(caught instanceof Error ? caught.message : '同步失败。');
+      }
       return;
     }
     setClipboardText('');
@@ -205,43 +402,430 @@ export default function TransferPanel() {
   };
   const download = async (item: Item) => {
     if (!space) return;
-    try { const data = await invoke<{ url: string }>('get-download-url', { transferSpaceId: space.id, transferItemId: item.id }); window.open(data.url, '_blank', 'noopener,noreferrer'); }
-    catch (caught) { setNotice(caught instanceof Error ? caught.message : '下载失败。'); }
+    try {
+      const data = await invoke<{ url: string }>('get-download-url', {
+        transferSpaceId: space.id,
+        transferItemId: item.id,
+      });
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : '下载失败。');
+    }
   };
   const createShare = async (item: Item) => {
     if (!space) return;
     try {
-      const data = await invoke<Omit<FileShare, 'title'>>('create-file-share-link', { transferSpaceId: space.id, transferItemId: item.id });
+      const data = await invoke<Omit<FileShare, 'title'>>('create-file-share-link', {
+        transferSpaceId: space.id,
+        transferItemId: item.id,
+      });
       setFileShare({ ...data, title: item.title });
-    } catch (caught) { setNotice(caught instanceof Error ? caught.message : '无法创建分享链接。'); }
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : '无法创建分享链接。');
+    }
   };
-  const removeItem = async (id: string) => { if (space && window.confirm('确定删除该传输项？')) { await invoke('delete-transfer-item', { transferSpaceId: space.id, transferItemId: id }); } };
-  const removeDevice = async (id: string) => { if (space && window.confirm('移除此手机后，它将立即失去访问权限。')) { await invoke('revoke-device', { transferSpaceId: space.id, deviceId: id }); await refresh(space.id); } };
-  const destroy = async () => { if (space && window.confirm('立即销毁空间会删除所有文件和文本，且无法恢复。')) { await invoke('destroy-transfer-space', { transferSpaceId: space.id }); setSpace(undefined); setNotice('传输空间已销毁。刷新页面可创建新的空间。'); } };
-  const onFiles = (event: ChangeEvent<HTMLInputElement>) => { if (event.target.files) void addFiles(event.target.files); event.target.value = ''; };
-  const onDrop = (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); void addFiles(event.dataTransfer.files); };
-  const countdown = useMemo(() => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`, [seconds]);
+  const removeItem = async (id: string) => {
+    if (space && window.confirm('确定删除该传输项？')) {
+      await invoke('delete-transfer-item', { transferSpaceId: space.id, transferItemId: id });
+    }
+  };
+  const removeDevice = async (id: string) => {
+    if (space && window.confirm('移除此手机后，它将立即失去访问权限。')) {
+      await invoke('revoke-device', { transferSpaceId: space.id, deviceId: id });
+      await refresh(space.id);
+    }
+  };
+  const destroy = async () => {
+    if (space && window.confirm('立即销毁空间会删除所有文件和文本，且无法恢复。')) {
+      await invoke('destroy-transfer-space', { transferSpaceId: space.id });
+      setSpace(undefined);
+      setNotice('传输空间已销毁。刷新页面可创建新的空间。');
+    }
+  };
+  const onFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) void addFiles(event.target.files);
+    event.target.value = '';
+  };
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    void addFiles(event.dataTransfer.files);
+  };
+  const countdown = useMemo(
+    () =>
+      `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`,
+    [seconds],
+  );
   const visibleItems = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
-    return query ? items.filter((item) => `${item.title}\n${item.text_content ?? ''}`.toLocaleLowerCase().includes(query)) : items;
+    return query
+      ? items.filter((item) =>
+          `${item.title}\n${item.text_content ?? ''}`.toLocaleLowerCase().includes(query),
+        )
+      : items;
   }, [items, searchQuery]);
 
-  if (bootError) return <main className="mx-auto max-w-xl p-6"><section className="panel p-6"><h1 className="text-2xl font-bold">QuickDrop</h1><p className="mt-4 text-rose-200">{bootError}</p><button className="action mt-5" onClick={() => window.location.reload()}>重新尝试</button></section></main>;
-  if (!space || !pairing) return <main className="grid min-h-screen place-items-center"><p className="text-slate-300">正在建立加密的临时传输空间…</p></main>;
+  if (bootError)
+    return (
+      <main className="mx-auto max-w-xl p-6">
+        <section className="panel p-6">
+          <h1 className="text-2xl font-bold">QuickDrop</h1>
+          <p className="mt-4 text-rose-200">{bootError}</p>
+          <button className="action mt-5" onClick={() => window.location.reload()}>
+            重新尝试
+          </button>
+        </section>
+      </main>
+    );
+  if (!space || !pairing)
+    return (
+      <main className="grid min-h-screen place-items-center">
+        <p className="text-slate-300">正在建立加密的临时传输空间…</p>
+      </main>
+    );
 
-  return <main className="mx-auto max-w-6xl p-4 md:p-8">
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-emerald-300">匿名临时传输 · 无需账号</p><h1 className="text-3xl font-bold">QuickDrop</h1>{onlinePeers.length > 0 && <p className="mt-1 text-sm text-sky-300">局域网直传可用 · {onlinePeers.length} 台手机在线</p>}</div><p className="text-sm text-slate-300">空间将在 {timeLabel(space.expires_at)} 自动清理</p></header>
-    {notice && <p className="mb-4 rounded-lg border border-sky-800 bg-sky-950/50 p-3 text-sm text-sky-100">{notice}</p>}
-    <div className="grid gap-5 lg:grid-cols-[370px_1fr]">
-      <section className="panel p-5"><p className="text-sm text-slate-300">用手机 QuickDrop App 扫码或输入验证码</p><div className="my-4 grid place-items-center rounded-xl bg-white p-4"><QRCodeSVG value={pairing.qrPayload} size={190} level="M" /></div><div className="rounded-xl bg-slate-950 p-4 text-center"><p className="text-4xl font-black tracking-[.35em] text-emerald-300">{pairing.code}</p><p className="mt-2 text-sm text-slate-400">验证码剩余 {countdown} · 仅成功使用一次</p></div><button className="secondary mt-4 w-full" onClick={() => void regenerate()}>重新生成验证码</button><div className="mt-6 border-t border-slate-700 pt-4"><p className="font-semibold">已连接设备 ({devices.length}/3)</p>{devices.length === 0 ? <p className="mt-2 text-sm text-slate-400">暂无已配对手机</p> : devices.map((device) => <div className="mt-3 flex items-center justify-between text-sm" key={device.id}><span>{device.device_name} · {device.device_type}{onlinePeers.includes(device.id) ? ' · 在线' : ''}</span><button className="secondary danger text-xs" onClick={() => void removeDevice(device.id)}>移除</button></div>)}</div></section>
-      <section className="space-y-5"><div className="panel p-5" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}><h2 className="font-bold">发送文件</h2><p className="mt-1 text-sm text-slate-400">小于 64MB 的文件安全上传到私有云端；64MB 及以上的文件会优先唤起本机局域网助手，直接流式传到同一 Wi‑Fi 的在线手机。助手未安装、手机不在线或直传失败时，将自动回退私有云端。单文件和云端空间上限均为 2GB。</p><label className="action mt-4 inline-block"><input className="hidden" type="file" multiple onChange={onFiles} />选择文件</label>{onlinePeers.length > 1 && <label className="mt-4 block text-sm text-slate-300">本机直传目标<select className="search-input mt-1 block w-full" value={targetDeviceId || onlinePeers[0]} onChange={(event) => setTargetDeviceId(event.target.value)}>{onlinePeers.map((id) => <option key={id} value={id}>{devices.find((device) => device.id === id)?.device_name ?? id}</option>)}</select></label>}{uploads.map((upload) => <div className="mt-3 text-sm" key={upload.id}><div className="flex justify-between"><span>{upload.name}</span><span>{upload.error ?? `${upload.progress}%`}{!upload.error && <span className="ml-2 text-xs text-sky-300">{upload.mode === 'bridge' ? '本机局域网直传' : '私有云端'}</span>}</span></div><div className="mt-1 h-1.5 overflow-hidden rounded bg-slate-700"><div className="h-full bg-emerald-400" style={{ width: `${upload.progress}%` }} /></div></div>)}</div>
-      <div className="panel p-5"><h2 className="font-bold">同步文字</h2><div className="mt-3 flex flex-wrap gap-2"><button className="action" onClick={() => void readClipboard()}>读取并同步剪贴板文字</button><button className="secondary" onClick={() => void sendText()} disabled={!clipboardText.trim()}>发送文字</button></div><textarea className="mt-3 min-h-28 w-full rounded-xl border border-slate-600 bg-slate-950 p-3" value={clipboardText} onChange={(event) => setClipboardText(event.target.value)} placeholder="剪贴板权限被拒绝时，可在此手动粘贴文字" /></div>
-      {receivedFiles.length > 0 && <div className="panel p-5 border-sky-800"><h2 className="font-bold text-sky-300">收到的局域网直传文件</h2>{receivedFiles.map((received) => <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm" key={received.url}><span>{received.name} · {byteLabel(received.size)}</span><div className="flex gap-2"><a className="action text-xs" href={received.url} download={received.name}>保存</a><button className="secondary danger text-xs" onClick={() => { URL.revokeObjectURL(received.url); setReceivedFiles((current) => current.filter((item) => item.url !== received.url)); }}>丢弃</button></div></div>)}</div>}
-      {bridgeFiles.length > 0 && <div className="panel p-5 border-sky-800"><h2 className="font-bold text-sky-300">手机通过本机助手传来的文件</h2>{bridgeFiles.map((file) => <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm" key={file.id}><span>{file.name} · {byteLabel(file.size)}</span><a className="action text-xs" href={file.url} download={file.name}>保存到电脑</a></div>)}</div>}
-      {receivedText && <div className="panel p-5 border-sky-800"><h2 className="font-bold text-sky-300">收到的局域网直传文字</h2><p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">{receivedText}</p><div className="mt-3 flex gap-2"><button className="action text-xs" onClick={() => void navigator.clipboard.writeText(receivedText).then(() => setNotice('文字已复制。'))}>复制文字</button><button className="secondary danger text-xs" onClick={() => setReceivedText('')}>丢弃</button></div></div>}
-      <div className="panel p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">实时传输列表</h2><div className="flex gap-2"><input className="search-input" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索文件或文字" /><button className="secondary text-sm" onClick={() => void refresh(space.id)}>刷新</button></div></div>{visibleItems.length === 0 ? <p className="mt-4 text-sm text-slate-400">{searchQuery ? '没有匹配的传输内容。' : '还没有传输内容。'}</p> : <div className="mt-3 divide-y divide-slate-700">{visibleItems.map((item) => <article className="py-3" key={item.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">{item.type === 'file' ? '文件 · ' : '文本 · '}{item.title}{item.transport === 'p2p' && <span className="ml-2 rounded bg-sky-950 px-1.5 py-0.5 text-xs text-sky-300">局域网直传 · 未入云</span>}</p><p className="mt-1 text-xs text-slate-400">{timeLabel(item.created_at)} {item.file_size ? `· ${byteLabel(item.file_size)}` : ''}</p>{item.type === 'text' && <p className="mt-2 max-w-xl whitespace-pre-wrap text-sm text-slate-300">{item.text_content}</p>}</div><div className="flex flex-wrap gap-2">{item.type === 'file' ? (item.transport === 'cloud' ? <><button className="secondary text-sm" onClick={() => void download(item)}>下载</button><button className="secondary text-sm" onClick={() => void createShare(item)}>二维码 / 链接</button></> : <span className="text-xs text-slate-400">文件仅保存在接收设备</span>) : <button className="secondary text-sm" onClick={() => void navigator.clipboard.writeText(item.text_content ?? '')}>复制</button>}<button className="secondary danger text-sm" onClick={() => void removeItem(item.id)}>删除</button></div></div></article>)}</div>}</div>
-      <button className="secondary danger w-full" onClick={() => void destroy()}>立即销毁此传输空间</button></section>
-    </div>
-    {fileShare && <div className="fixed inset-0 z-20 grid place-items-center bg-slate-900/25 p-4"><section className="share-dialog"><button className="float-right text-slate-500" onClick={() => setFileShare(undefined)}>关闭</button><p className="text-sm font-bold text-emerald-700">安全文件分享</p><h2 className="mt-2 text-xl font-bold">{fileShare.title}</h2><div className="my-5 grid place-items-center rounded-2xl bg-white p-4"><QRCodeSVG value={fileShare.shareUrl} size={210} level="M" /></div><p className="text-sm text-slate-600">扫描二维码即可直接下载。链接将在 {timeLabel(fileShare.expiresAt)} 失效。</p><input className="share-link" readOnly value={fileShare.shareUrl} onFocus={(event) => event.currentTarget.select()} /><div className="mt-3 flex gap-2"><button className="action" onClick={() => void navigator.clipboard.writeText(fileShare.shareUrl).then(() => setNotice('分享链接已复制。'))}>复制链接</button><a className="secondary text-center" href={fileShare.shareUrl} target="_blank" rel="noreferrer">测试下载页</a></div></section></div>}
-  </main>;
+  return (
+    <main className="transfer-page mx-auto max-w-6xl p-4 md:p-8">
+      <header className="dashboard-hero mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-emerald-300">匿名临时传输 · 无需账号</p>
+          <h1 className="text-3xl font-bold">QuickDrop</h1>
+          {onlinePeers.length > 0 && (
+            <p className="mt-1 text-sm text-sky-300">
+              局域网直传可用 · {onlinePeers.length} 台手机在线
+            </p>
+          )}
+        </div>
+        <p className="text-sm text-slate-300">空间将在 {timeLabel(space.expires_at)} 自动清理</p>
+      </header>
+      {notice && (
+        <p className="notice-banner mb-4 rounded-lg border border-sky-800 bg-sky-950/50 p-3 text-sm text-sky-100">
+          {notice}
+        </p>
+      )}
+      <div className="dashboard-layout grid gap-5 lg:grid-cols-[370px_1fr]">
+        <section className="pairing-card panel p-5">
+          <p className="text-sm text-slate-300">用手机 QuickDrop App 扫码或输入验证码</p>
+          <div className="my-4 grid place-items-center rounded-xl bg-white p-4">
+            <QRCodeSVG value={pairing.qrPayload} size={190} level="M" />
+          </div>
+          <div className="rounded-xl bg-slate-950 p-4 text-center">
+            <p className="text-4xl font-black tracking-[.35em] text-emerald-300">{pairing.code}</p>
+            <p className="mt-2 text-sm text-slate-400">验证码剩余 {countdown} · 仅成功使用一次</p>
+          </div>
+          <button className="secondary mt-4 w-full" onClick={() => void regenerate()}>
+            重新生成验证码
+          </button>
+          <div className="device-list mt-6 border-t border-slate-700 pt-4">
+            <p className="font-semibold">已连接设备 ({devices.length}/3)</p>
+            {devices.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">暂无已配对手机</p>
+            ) : (
+              devices.map((device) => (
+                <div
+                  className="device-row mt-3 flex items-center justify-between text-sm"
+                  key={device.id}
+                >
+                  <span>
+                    {device.device_name} · {device.device_type}
+                    {onlinePeers.includes(device.id) ? ' · 在线' : ''}
+                  </span>
+                  <button
+                    className="secondary danger text-xs"
+                    onClick={() => void removeDevice(device.id)}
+                  >
+                    移除
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+        <section className="workspace-grid space-y-5">
+          <div
+            className="workspace-card upload-card panel p-5"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={onDrop}
+          >
+            <h2 className="font-bold">发送文件</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              小于 64MB 的文件安全上传到私有云端；64MB
+              及以上的文件会优先唤起本机局域网助手，直接流式传到同一 Wi‑Fi
+              的在线手机。助手未安装、手机不在线或直传失败时，将自动回退私有云端。单文件和云端空间上限均为
+              2GB。
+            </p>
+            <label className="file-picker action mt-4 inline-block">
+              <input className="hidden" type="file" multiple onChange={onFiles} />
+              选择文件
+            </label>
+            {onlinePeers.length > 1 && (
+              <label className="mt-4 block text-sm text-slate-300">
+                本机直传目标
+                <select
+                  className="search-input mt-1 block w-full"
+                  value={targetDeviceId || onlinePeers[0]}
+                  onChange={(event) => setTargetDeviceId(event.target.value)}
+                >
+                  {onlinePeers.map((id) => (
+                    <option key={id} value={id}>
+                      {devices.find((device) => device.id === id)?.device_name ?? id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {uploads.map((upload) => (
+              <div className="upload-item mt-3 text-sm" key={upload.id}>
+                <div className="upload-item-head flex justify-between">
+                  <span>{upload.name}</span>
+                  <span>
+                    {upload.error ?? `${upload.progress}%`}
+                    {!upload.error && (
+                      <span className="ml-2 text-xs text-sky-300">
+                        {upload.mode === 'bridge' ? '本机局域网直传' : '私有云端'}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="upload-progress mt-1 h-1.5 overflow-hidden rounded bg-slate-700">
+                  <div
+                    className="upload-progress-value h-full bg-emerald-400"
+                    style={{ width: `${upload.progress}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="workspace-card text-card panel p-5">
+            <h2 className="font-bold">同步文字</h2>
+            <div className="text-actions mt-3 flex flex-wrap gap-2">
+              <button className="action" onClick={() => void readClipboard()}>
+                读取并同步剪贴板文字
+              </button>
+              <button
+                className="secondary"
+                onClick={() => void sendText()}
+                disabled={!clipboardText.trim()}
+              >
+                发送文字
+              </button>
+            </div>
+            <textarea
+              className="text-sync-input mt-3 min-h-28 w-full rounded-xl border border-slate-600 bg-slate-950 p-3"
+              value={clipboardText}
+              onChange={(event) => setClipboardText(event.target.value)}
+              placeholder="剪贴板权限被拒绝时，可在此手动粘贴文字"
+            />
+          </div>
+          {receivedFiles.length > 0 && (
+            <div className="workspace-card received-card panel p-5 border-sky-800">
+              <h2 className="font-bold text-sky-300">收到的局域网直传文件</h2>
+              {receivedFiles.map((received) => (
+                <div
+                  className="received-item mt-3 flex flex-wrap items-center justify-between gap-3 text-sm"
+                  key={received.url}
+                >
+                  <span>
+                    {received.name} · {byteLabel(received.size)}
+                  </span>
+                  <div className="flex gap-2">
+                    <a className="action text-xs" href={received.url} download={received.name}>
+                      保存
+                    </a>
+                    <button
+                      className="secondary danger text-xs"
+                      onClick={() => {
+                        URL.revokeObjectURL(received.url);
+                        setReceivedFiles((current) =>
+                          current.filter((item) => item.url !== received.url),
+                        );
+                      }}
+                    >
+                      丢弃
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {bridgeFiles.length > 0 && (
+            <div className="workspace-card received-card panel p-5 border-sky-800">
+              <h2 className="font-bold text-sky-300">手机通过本机助手传来的文件</h2>
+              {bridgeFiles.map((file) => (
+                <div
+                  className="received-item mt-3 flex flex-wrap items-center justify-between gap-3 text-sm"
+                  key={file.id}
+                >
+                  <span>
+                    {file.name} · {byteLabel(file.size)}
+                  </span>
+                  <a className="action text-xs" href={file.url} download={file.name}>
+                    保存到电脑
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+          {receivedText && (
+            <div className="workspace-card received-card panel p-5 border-sky-800">
+              <h2 className="font-bold text-sky-300">收到的局域网直传文字</h2>
+              <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">
+                {receivedText}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  className="action text-xs"
+                  onClick={() =>
+                    void navigator.clipboard
+                      .writeText(receivedText)
+                      .then(() => setNotice('文字已复制。'))
+                  }
+                >
+                  复制文字
+                </button>
+                <button className="secondary danger text-xs" onClick={() => setReceivedText('')}>
+                  丢弃
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="workspace-card transfer-list-card panel p-5">
+            <div className="transfer-list-toolbar flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-bold">实时传输列表</h2>
+              <div className="transfer-toolbar-actions flex gap-2">
+                <input
+                  className="search-input"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="搜索文件或文字"
+                />
+                <button className="secondary text-sm" onClick={() => void refresh(space.id)}>
+                  刷新
+                </button>
+              </div>
+            </div>
+            {visibleItems.length === 0 ? (
+              <p className="empty-state mt-4 text-sm text-slate-400">
+                {searchQuery ? '没有匹配的传输内容。' : '还没有传输内容。'}
+              </p>
+            ) : (
+              <div className="mt-3 divide-y divide-slate-700">
+                {visibleItems.map((item) => (
+                  <article className="py-3" key={item.id}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="transfer-item-content">
+                        <p className="font-medium">
+                          {item.type === 'file' ? '文件 · ' : '文本 · '}
+                          {item.title}
+                          {item.transport === 'p2p' && (
+                            <span className="ml-2 rounded bg-sky-950 px-1.5 py-0.5 text-xs text-sky-300">
+                              局域网直传 · 未入云
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {timeLabel(item.created_at)}{' '}
+                          {item.file_size ? `· ${byteLabel(item.file_size)}` : ''}
+                        </p>
+                        {item.type === 'text' && (
+                          <p className="mt-2 max-w-xl whitespace-pre-wrap text-sm text-slate-300">
+                            {item.text_content}
+                          </p>
+                        )}
+                      </div>
+                      <div className="transfer-item-actions flex flex-wrap gap-2">
+                        {item.type === 'file' ? (
+                          item.transport === 'cloud' ? (
+                            <>
+                              <button
+                                className="secondary text-sm"
+                                onClick={() => void download(item)}
+                              >
+                                下载
+                              </button>
+                              <button
+                                className="secondary text-sm"
+                                onClick={() => void createShare(item)}
+                              >
+                                二维码 / 链接
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400">文件仅保存在接收设备</span>
+                          )
+                        ) : (
+                          <button
+                            className="secondary text-sm"
+                            onClick={() =>
+                              void navigator.clipboard.writeText(item.text_content ?? '')
+                            }
+                          >
+                            复制
+                          </button>
+                        )}
+                        <button
+                          className="secondary danger text-sm"
+                          onClick={() => void removeItem(item.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+          <button className="destroy-space secondary danger w-full" onClick={() => void destroy()}>
+            立即销毁此传输空间
+          </button>
+        </section>
+      </div>
+      {fileShare && (
+        <div className="share-overlay fixed inset-0 z-20 grid place-items-center bg-slate-900/25 p-4">
+          <section className="share-dialog">
+            <button
+              className="share-close float-right text-slate-500"
+              onClick={() => setFileShare(undefined)}
+            >
+              关闭
+            </button>
+            <p className="text-sm font-bold text-emerald-700">安全文件分享</p>
+            <h2 className="mt-2 text-xl font-bold">{fileShare.title}</h2>
+            <div className="my-5 grid place-items-center rounded-2xl bg-white p-4">
+              <QRCodeSVG value={fileShare.shareUrl} size={210} level="M" />
+            </div>
+            <p className="text-sm text-slate-600">
+              扫描二维码即可直接下载。链接将在 {timeLabel(fileShare.expiresAt)} 失效。
+            </p>
+            <input
+              className="share-link"
+              readOnly
+              value={fileShare.shareUrl}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <div className="share-actions mt-3 flex gap-2">
+              <button
+                className="action"
+                onClick={() =>
+                  void navigator.clipboard
+                    .writeText(fileShare.shareUrl)
+                    .then(() => setNotice('分享链接已复制。'))
+                }
+              >
+                复制链接
+              </button>
+              <a
+                className="secondary text-center"
+                href={fileShare.shareUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                测试下载页
+              </a>
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
 }
