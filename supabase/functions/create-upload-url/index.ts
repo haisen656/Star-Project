@@ -20,7 +20,11 @@ Deno.serve(async (request) => {
     const { data: usedBytes, error: usageError } = await admin.rpc('space_used_bytes', { space_id: spaceId });
     if (usageError) throw usageError;
     if (Number(usedBytes ?? 0) + size > MAX_BYTES) return error('传输空间总容量不能超过 2GB。', 409, 'SPACE_CAPACITY_EXCEEDED');
-    const storagePath = `${spaceId}/${randomToken(18)}/${filename}`;
+    // Keep object keys opaque and ASCII-only. Display names (which may contain
+    // CJK characters or other punctuation) are stored separately on
+    // transfer_items and are only used for the download filename. This avoids
+    // storage-key validation failures while preserving the original name.
+    const storagePath = `${spaceId}/${randomToken(32)}.bin`;
     const { data, error: uploadError } = await admin.storage.from('quickdrop-files').createSignedUploadUrl(storagePath);
     if (uploadError || !data?.signedUrl) throw uploadError ?? new Error('UPLOAD_URL_FAILED');
     return json({ storagePath, signedUrl: data.signedUrl, token: data.token, filename, uploaderDeviceId: access.deviceId });

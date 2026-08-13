@@ -30,6 +30,10 @@ Edge Functions 验证请求里的匿名 JWT；若不是空间所有者，则还�
 
 `quickdrop-files` 是 `public=false` bucket，刻意没有直接客户端 Storage policy。只有使用 `service_role` 的函数可创建签名 URL；`service_role` 只存在于 Supabase Edge Function 运行环境。
 
+## 局域网直传
+
+Web 与已配对手机同网时可通过 WebRTC DataChannel 直传文件与文本，信令经 Realtime 私有广播通道（RLS 鉴权），失败自动回退云端链路。直传 v1 仅处理不大于 64MB 的文件，以限制浏览器接收内存；更大文件仍使用私有 Storage（单文件、空间总量上限均为 2GB）。详见 [局域网直传设计方案](lan-p2p-transfer.md)。
+
 ## 生命周期
 
 空间可在 1、24（默认）或 168 小时后到期；当前 Web 默认请求 24 小时。配对码固定十分钟，到期、配对成功、累计失败达到上限或重新生成后均失效。用户可销毁整个空间，所有文件与数据随之删除。定时函数删除全部过期空间、项及其私有 Storage 对象。

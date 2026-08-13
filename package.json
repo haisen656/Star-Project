@@ -1,7 +1,7 @@
 {
   "name": "quickdrop",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@9.15.5",
   "scripts": {
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
@@ -10,6 +10,6 @@
   },
   "devDependencies": {
     "prettier": "^3.5.3",
-    "typescript": "^5.8.3"
+    "typescript": "5.8.3"
   }
 }

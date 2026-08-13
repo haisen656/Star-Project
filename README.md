@@ -24,7 +24,7 @@ docs                     架构和安全说明
 supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 supabase secrets set PAIRING_HASH_SECRET="至少 32 字符的随机服务端密钥" CRON_SECRET="随机 cron 密钥"
-supabase functions deploy create-transfer-space pair-device get-download-url revoke-device cleanup-expired-spaces regenerate-pairing-code create-upload-url complete-upload create-text-item get-space-state delete-transfer-item destroy-transfer-space
+supabase functions deploy create-transfer-space pair-device get-download-url revoke-device cleanup-expired-spaces regenerate-pairing-code create-upload-url complete-upload create-text-item get-space-state delete-transfer-item destroy-transfer-space create-file-share-link share-file-download create-p2p-item
 ```
 
 5. 启动客户端：
@@ -51,4 +51,4 @@ pnpm build
 
 每个文件可生成一个可撤销的安全分享链接；Web 会以二维码展示，手机可通过系统分享链接。链接令牌默认一小时失效，扫码后的实际私有下载 URL 仍只有效 60 秒。
 
-详见 [架构说明](docs/architecture.md)、[安全说明](docs/security.md) 与 [发布 Web URL / APK](docs/deployment.md)。
+详见 [架构说明](docs/architecture.md)、[安全说明](docs/security.md) 与 [发布 Web URL / APK](docs/deployment.md)。局域网直传（WebRTC P2P）方案见 [设计文档](docs/lan-p2p-transfer.md)。

@@ -8,7 +8,7 @@ QuickDrop 的文件分享链接依赖公开 HTTPS Web 地址。先完成 Supabas
 supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 supabase secrets set PAIRING_HASH_SECRET="至少 32 字符的随机值" CRON_SECRET="另一随机值" WEB_APP_URL="https://YOUR_WEB_DOMAIN"
-supabase functions deploy create-transfer-space pair-device get-download-url revoke-device cleanup-expired-spaces regenerate-pairing-code create-upload-url complete-upload create-text-item get-space-state delete-transfer-item destroy-transfer-space create-file-share-link share-file-download
+supabase functions deploy create-transfer-space pair-device get-download-url revoke-device cleanup-expired-spaces regenerate-pairing-code create-upload-url complete-upload create-text-item get-space-state delete-transfer-item destroy-transfer-space create-file-share-link share-file-download create-p2p-item
 ```
 
 将 `cleanup-expired-spaces` 设为每小时由可信调度器调用一次，并携带 `x-cron-secret`。保存以下公开值供 Web 与 App 使用：项目 URL、anon key。
@@ -42,6 +42,8 @@ pnpm --filter @quickdrop/mobile build:apk
 ```
 
 EAS 完成后输出的 artifact URL 是最终 APK 下载地址。生产商店发布使用 `production` profile，它输出 Android App Bundle；`apk` profile 专用于直接下载安装。
+
+局域网直传（WebRTC P2P）为 APK 引入原生模块（`react-native-webrtc`），任何相关改动都必须重新执行本节构建；Web 端与迁移的发布顺序见 [局域网直传设计方案](lan-p2p-transfer.md) §10。
 
 ## 分享链接安全
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./security": "./src/security.ts", "./validation": "./src/validation.ts" },
+  "exports": { ".": "./src/index.ts", "./security": "./src/security.ts", "./validation": "./src/validation.ts", "./signaling": "./src/signaling.ts" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src tests --max-warnings=0",

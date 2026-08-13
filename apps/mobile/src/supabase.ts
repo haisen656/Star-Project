@@ -19,3 +19,4 @@ export function supabase(): SupabaseClient {
 
 export const DEVICE_TOKEN_KEY = 'quickdrop_device_access_token';
 export const SPACE_ID_KEY = 'quickdrop_transfer_space_id';
+export const DEVICE_ID_KEY = 'quickdrop_device_id';

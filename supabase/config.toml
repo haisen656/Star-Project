@@ -28,3 +28,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.share-file-download]
 verify_jwt = false
+[functions.create-p2p-item]
+verify_jwt = true

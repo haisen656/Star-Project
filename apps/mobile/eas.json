@@ -3,6 +3,7 @@
   "build": {
     "apk": {
       "distribution": "internal",
+      "environment": "production",
       "android": { "buildType": "apk" },
       "env": { "EXPO_PUBLIC_APP_ENV": "production" }
     },

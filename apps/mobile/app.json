@@ -1,13 +1,41 @@
 {
   "expo": {
     "name": "QuickDrop",
-    "slug": "quickdrop",
+    "slug": "quick-drop",
     "version": "0.1.0",
+    "icon": "./assets/quickdrop-icon.png",
     "orientation": "portrait",
     "scheme": "quickdrop",
     "userInterfaceStyle": "automatic",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.example.quickdrop" },
-    "android": { "package": "com.quickdrop.mobile", "permissions": ["CAMERA"] },
-    "plugins": ["expo-camera", "expo-secure-store", "expo-document-picker"]
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.quickdrop"
+    },
+    "android": {
+      "package": "com.quickdrop.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/quickdrop-icon.png",
+        "backgroundColor": "#0B1432"
+      },
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-secure-store",
+      "expo-document-picker",
+      "@config-plugins/react-native-webrtc",
+      "./plugins/withSecureStoreBackupRules",
+      "./plugins/withExpoModulesPackageBridge"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0df83558-787f-4e87-a079-2d902a5e4f26"
+      }
+    },
+    "owner": "star-starrys-team"
   }
 }
